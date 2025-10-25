@@ -1,53 +1,108 @@
-import hre from "hardhat";
-import { formatEther } from "viem";
+import { createPublicClient, createWalletClient, http, formatEther, parseEther } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { defineChain } from 'viem';
+import fs from 'fs';
+import path from 'path';
+
+// Read contract artifacts
+function getContractArtifact(contractName) {
+  const artifactPath = path.join(process.cwd(), 'artifacts', 'contracts', `${contractName}.sol`, `${contractName}.json`);
+  return JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+}
 
 async function main() {
   console.log("🚀 Starting deployment with Hardhat v3...");
 
-  const [deployer] = await hre.viem.getWalletClients();
-  console.log("Deploying contracts with account:", deployer.account.address);
+  // Define the hardhat local chain
+  const hardhatLocal = defineChain({
+    id: 31337,
+    name: 'Hardhat Local',
+    network: 'hardhat',
+    nativeCurrency: {
+      decimals: 18,
+      name: 'Ether',
+      symbol: 'ETH',
+    },
+    rpcUrls: {
+      default: {
+        http: ['http://127.0.0.1:8545'],
+      },
+    },
+  });
 
-  // Deploy PPT Token with 200 million initial supply (already includes 18 decimals)
+  // Use the first hardhat account
+  const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
+
+  const publicClient = createPublicClient({
+    chain: hardhatLocal,
+    transport: http()
+  });
+
+  const walletClient = createWalletClient({
+    account,
+    chain: hardhatLocal,
+    transport: http()
+  });
+
+  console.log("Deploying contracts with account:", account.address);
+
+  // Get contract artifacts
+  const pptTokenArtifact = getContractArtifact('PPTToken');
+  const medInvoiceArtifact = getContractArtifact('MedInvoiceContract');
+
+  // Deploy PPT Token with 200 million initial supply
   console.log("\n📦 Deploying PPT Token...");
-  const pptToken = await hre.viem.deployContract("PPTToken", [200_000_000n]);
+  const pptTokenHash = await walletClient.deployContract({
+    abi: pptTokenArtifact.abi,
+    bytecode: pptTokenArtifact.bytecode,
+    args: [parseEther('200000000')],
+  });
 
-  console.log("✅ PPT Token deployed at:", pptToken.address);
+  const pptTokenReceipt = await publicClient.waitForTransactionReceipt({ hash: pptTokenHash });
+  const pptTokenAddress = pptTokenReceipt.contractAddress;
 
-  // Deploy MedInvoiceContract with PPT Token address
+  console.log("✅ PPT Token deployed at:", pptTokenAddress);
+
+  // Deploy MedInvoiceContract
   console.log("\n📦 Deploying MedInvoiceContract...");
-  const medInvoiceContract = await hre.viem.deployContract("MedInvoiceContract", [pptToken.address]);
+  const medInvoiceHash = await walletClient.deployContract({
+    abi: medInvoiceArtifact.abi,
+    bytecode: medInvoiceArtifact.bytecode,
+    args: [pptTokenAddress],
+  });
 
-  console.log("✅ MedInvoiceContract deployed at:", medInvoiceContract.address);
+  const medInvoiceReceipt = await publicClient.waitForTransactionReceipt({ hash: medInvoiceHash });
+  const medInvoiceAddress = medInvoiceReceipt.contractAddress;
+
+  console.log("✅ MedInvoiceContract deployed at:", medInvoiceAddress);
 
   // Get contract details
-  const publicClient = await hre.viem.getPublicClient();
-
   const totalSupply = await publicClient.readContract({
-    address: pptToken.address,
-    abi: pptToken.abi,
+    address: pptTokenAddress,
+    abi: pptTokenArtifact.abi,
     functionName: 'totalSupply'
   });
 
   const ownerBalance = await publicClient.readContract({
-    address: pptToken.address,
-    abi: pptToken.abi,
+    address: pptTokenAddress,
+    abi: pptTokenArtifact.abi,
     functionName: 'balanceOf',
-    args: [deployer.account.address]
+    args: [account.address]
   });
 
   console.log("\n📊 Deployment Summary:");
   console.log("======================");
   console.log("Network: localhost");
-  console.log("Deployer:", deployer.account.address);
-  console.log("PPT Token:", pptToken.address);
-  console.log("MedInvoiceContract:", medInvoiceContract.address);
+  console.log("Deployer:", account.address);
+  console.log("PPT Token:", pptTokenAddress);
+  console.log("MedInvoiceContract:", medInvoiceAddress);
   console.log("Total Supply:", formatEther(totalSupply), "PPT");
   console.log("Owner Balance:", formatEther(ownerBalance), "PPT");
 
   return {
-    pptToken: pptToken.address,
-    medInvoiceContract: medInvoiceContract.address,
-    deployer: deployer.account.address
+    pptToken: pptTokenAddress,
+    medInvoiceContract: medInvoiceAddress,
+    deployer: account.address
   };
 }
 
