@@ -27,9 +27,9 @@
 ### 2. Installation
 
 ```bash
-# Clone this repository (or use your existing setup)
-git clone <your-repo-url>
-cd smart-contract-test
+# Clone this repository
+git clone https://github.com/seetadev/park-pro-token-hardhat-3
+cd park-pro-token-hardhat-3
 
 # Install dependencies (use --force for Hardhat v3 compatibility)
 npm install --force
