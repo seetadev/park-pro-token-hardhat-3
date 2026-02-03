@@ -40,6 +40,18 @@ export default {
       type: "http",
       url: process.env.RPC_URL || "https://alfajores-forno.celo-testnet.org",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    "avalancheFuji": {
+      type: "http",
+      url: process.env.RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc",
+      chainId: 43113,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    "avalanche": {
+      type: "http",
+      url: process.env.RPC_URL || "https://api.avax.network/ext/bc/C/rpc",
+      chainId: 43114,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
   etherscan: {
@@ -49,7 +61,9 @@ export default {
       "op-mainnet": process.env.VERIFY_KEY,
       "optimism": process.env.VERIFY_KEY,
       "arbitrumSepolia": process.env.VERIFY_KEY,
-      "celo-alfajores": process.env.VERIFY_KEY
+      "celo-alfajores": process.env.VERIFY_KEY,
+      "avalancheFuji": process.env.VERIFY_KEY,
+      "avalanche": process.env.VERIFY_KEY
     },
     customChains: [
       {
@@ -88,8 +102,8 @@ export default {
         network: "celo-alfajores",
         chainId: 44787,
         urls: {
-            apiURL: "https://api-alfajores.celoscan.io/api",
-            browserURL: "https://alfajores.celoscan.io",
+          apiURL: "https://api-alfajores.celoscan.io/api",
+          browserURL: "https://alfajores.celoscan.io",
         },
       },
       {
@@ -98,6 +112,22 @@ export default {
         urls: {
           apiURL: "https://api-optimistic.etherscan.io/api",
           browserURL: "https://optimistic.etherscan.io"
+        }
+      },
+      {
+        network: "avalancheFuji",
+        chainId: 43113,
+        urls: {
+          apiURL: "https://api.snowtrace.io/api",
+          browserURL: "https://testnet.snowtrace.io"
+        }
+      },
+      {
+        network: "avalanche",
+        chainId: 43114,
+        urls: {
+          apiURL: "https://api.snowtrace.io/api",
+          browserURL: "https://snowtrace.io"
         }
       }
     ]

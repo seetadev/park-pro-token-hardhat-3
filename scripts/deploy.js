@@ -3,6 +3,9 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { defineChain } from 'viem';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Read contract artifacts
 function getContractArtifact(contractName) {
@@ -13,11 +16,51 @@ function getContractArtifact(contractName) {
 async function main() {
   console.log("🚀 Starting deployment with Hardhat v3...");
 
-  // Define the hardhat local chain
-  const hardhatLocal = defineChain({
-    id: 31337,
-    name: 'Hardhat Local',
-    network: 'hardhat',
+  // Get network name from command line arguments
+  const args = process.argv;
+  const networkIndex = args.indexOf('--network');
+  const networkName = networkIndex !== -1 && args[networkIndex + 1] ? args[networkIndex + 1] : 'localhost';
+  
+  console.log("Network:", networkName);
+
+  // Network configurations
+  const networks = {
+    localhost: {
+      url: 'http://127.0.0.1:8545',
+      chainId: 31337,
+      privateKey: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+    },
+    avalancheFuji: {
+      url: process.env.RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc',
+      chainId: 43113,
+      privateKey: process.env.PRIVATE_KEY
+    },
+    avalanche: {
+      url: process.env.RPC_URL || 'https://api.avax.network/ext/bc/C/rpc',
+      chainId: 43114,
+      privateKey: process.env.PRIVATE_KEY
+    },
+    calibnet: {
+      url: process.env.RPC_URL || 'https://api.calibration.node.glif.io/rpc/v1',
+      chainId: 314159,
+      privateKey: process.env.PRIVATE_KEY
+    },
+    'op-sepolia': {
+      url: process.env.RPC_URL || 'https://sepolia.optimism.io',
+      chainId: 11155420,
+      privateKey: process.env.PRIVATE_KEY
+    }
+  };
+
+  const networkConfig = networks[networkName] || networks.localhost;
+  
+  console.log("RPC URL:", networkConfig.url);
+
+  // Define the chain based on network configuration
+  const chain = defineChain({
+    id: networkConfig.chainId,
+    name: networkName,
+    network: networkName,
     nativeCurrency: {
       decimals: 18,
       name: 'Ether',
@@ -25,23 +68,27 @@ async function main() {
     },
     rpcUrls: {
       default: {
-        http: ['http://127.0.0.1:8545'],
+        http: [networkConfig.url],
       },
     },
   });
 
-  // Use the first hardhat account
-  const account = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
+  // Get account from network configuration
+  const privateKey = networkConfig.privateKey;
+  if (!privateKey) {
+    throw new Error('Private key not found. Please set PRIVATE_KEY in .env file');
+  }
+  const account = privateKeyToAccount(privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`);
 
   const publicClient = createPublicClient({
-    chain: hardhatLocal,
-    transport: http()
+    chain,
+    transport: http(networkConfig.url)
   });
 
   const walletClient = createWalletClient({
     account,
-    chain: hardhatLocal,
-    transport: http()
+    chain,
+    transport: http(networkConfig.url)
   });
 
   console.log("Deploying contracts with account:", account.address);
@@ -92,7 +139,7 @@ async function main() {
 
   console.log("\n📊 Deployment Summary:");
   console.log("======================");
-  console.log("Network: localhost");
+  console.log("Network:", networkName);
   console.log("Deployer:", account.address);
   console.log("PPT Token:", pptTokenAddress);
   console.log("MedInvoiceContract:", medInvoiceAddress);
